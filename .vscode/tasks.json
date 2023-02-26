@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build with Clang",
+            "type": "shell",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-O0",
+                "-g",
+                "-D=LOCAL",
+                "-Wshadow",
+                "-Wall",
+                "-fsanitize=address",
+                "-fsanitize=undefined",
+                "-D_GLIBCXX_DEBUG",
+                "-D_GLIBCXX_DEBUG_PEDANTIC",
+                "-std=c++17",
+                "${relativeFile}",
+                "-o",
+                "${fileDirname}/a.out",
+                "--debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

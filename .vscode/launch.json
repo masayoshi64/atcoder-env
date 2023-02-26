@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(lldb) Launch",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${fileDirname}/a.out",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build with Clang",
+            // 標準入力をinput.txtから入れたいなら
+            "preRunCommands": [
+                "settings set target.input-path input.txt"
+            ],
+            "stopOnEntry": false,
+        }
+    ]
+}
