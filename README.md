@@ -22,6 +22,7 @@ psytester config --load atcoder (最新のtester.clgが欲しい時)
 3. スコアをScore = 100のような形で標準エラー出力に出力
 3. 以下のコマンドでまとめて実行（seed=0~9）
 ```
+./run.sh # コンパイル
 psytester r -t 0-9
 ```
 
