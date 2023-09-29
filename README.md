@@ -26,6 +26,20 @@ psytester config --load atcoder (最新のtester.clgが欲しい時)
 psytester r -t 0-9
 ```
 
+#### ハイパラ最適化
+1. main.cppに以下を追加
+```
+if(argc == 2){
+    x = stoi(argv[1]); // ハイパラの数，型に応じて変更
+}
+```
+2. optimize.pyを以下のように書き換え
+```
+x = trial.suggest_int("x", 1, 1000)
+args = f"{x}"
+```
+3. `python optimize.py`で最適化
+
 ## 環境構築
 ### コマンドラインツール
 - atcoder-cli
