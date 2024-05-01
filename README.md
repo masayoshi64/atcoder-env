@@ -1,4 +1,17 @@
 # 個人用競技プログラミング用の環境
+## Installation
+### [atcoder-cli](https://github.com/Tatamo/atcoder-cli)
+```bash
+brew install nvm
+# 指示に従ってパスを通す
+nvm install node
+npm install -g npm
+npm install -g atcoder-cli
+```
+### [online-judge-tools](https://github.com/online-judge-tools/oj)
+```bash
+pip install online-judge-tools
+```
 ## 使い方
 ### アルゴリズム系コンテスト
 ```
