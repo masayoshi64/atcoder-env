@@ -8,9 +8,9 @@ nvm install node
 npm install -g npm
 npm install -g atcoder-cli
 ```
-### [online-judge-tools](https://github.com/online-judge-tools/oj)
+### [online-judge-tools](https://github.com/online-judge-tools/oj), [verification-helper](https://github.com/online-judge-tools/verification-helper)
 ```bash
-pip install online-judge-tools
+pip install -r requirements.txt
 ```
 
 ## Settings
@@ -33,8 +33,8 @@ code main.cpp # main.cppを開く
 ########################
 # コーディング
 ########################
-oj t # 自動テストを実行
-acc s # 自動submit
+./test.sh # テスト
+./submit.sh # 提出
 ```
 ### ヒューリスティックコンテスト
 1. 以下を実行
