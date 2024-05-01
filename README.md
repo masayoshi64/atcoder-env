@@ -12,6 +12,18 @@ npm install -g atcoder-cli
 ```bash
 pip install online-judge-tools
 ```
+
+## Settings
+### atcoder-cli
+```bash
+acc login # ログイン
+acc config-dir # configの場所を確認
+# ojと連携するためテストディレクトリの名前を変更
+acc config default-test-dirname-format test
+# テンプレートの作成
+cp -r templates/cpp `acc config-dir`
+acc config default-template cpp
+```
 ## 使い方
 ### アルゴリズム系コンテスト
 ```

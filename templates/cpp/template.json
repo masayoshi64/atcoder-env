@@ -1,0 +1,13 @@
+{
+    "task": {
+        "program": [
+            "main.cpp"
+        ],
+        "submit": "submit.cpp",
+        "static": [
+            "test.sh",
+            "submit.sh"
+        ],
+        "cmd": "chmod u+x test.sh && chmod u+x submit.sh"
+    }
+}
