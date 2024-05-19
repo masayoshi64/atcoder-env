@@ -1,4 +1,4 @@
-#include "../../library/library/template/template.cpp"
+#include "../../../library/library/template/template.cpp"
 
 int main(int argc, char *argv[]) {
     cin.tie(0);
