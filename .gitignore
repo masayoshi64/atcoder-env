@@ -4,3 +4,5 @@ tools
 tests
 output.txt
 a.out*
+test.sh
+submit.sh
