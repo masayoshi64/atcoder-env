@@ -4,6 +4,17 @@ const int max_turn = 10000;
 int N;
 mat<int> A;
 
+struct Pos {
+    int x, y;
+    Pos(int x, int y) : x(x), y(y) {}
+
+    bool is_null() { return x == -1 && y == -1; }
+
+    void set_null() { x = -1, y = -1; }
+
+    bool operator==(const Pos &p) const { return x == p.x && y == p.y; }
+};
+
 struct Crane {
     int x, y;
     int holding_container = -1;
@@ -63,7 +74,7 @@ struct Terminal {
         crane.x = nx;
         crane.y = ny;
         if (crane.is_holding()) {
-            if (x == 0) {
+            if (x == 0 && !waiting_containers[y].empty()) {
                 grid[y][x] = waiting_containers[y].back();
                 waiting_containers[y].pop_back();
             }
@@ -107,6 +118,13 @@ struct Terminal {
         }
         return M0 + M1 * 1e2 + M2 * 1e4 + M3 * 1e6;
     }
+
+    bool is_clear() {
+        rep(i, N) {
+            if (dispatched_containers[i].size() != N) return false;
+        }
+        return true;
+    }
 };
 
 int main(int argc, char *argv[]) {
@@ -119,21 +137,67 @@ int main(int argc, char *argv[]) {
     A = mat<int>(N, vi(N));
     scan(A);
 
-    vector<string> S = {"PRDDDDRRRQLLLUUPRRRUQ", "B", "PRQB", "PRRRRUUQB", "PRRRRQB"};
-
+    vector<string> actions_list;
     Terminal terminal;
     int num_turn = 0;
-    rep(i, N) { chmax(num_turn, SZ(S[i])); }
-    rep(turn, num_turn) {
+    Pos target_pos(-1, -1);
+    Crane &crane0 = terminal.cranes[0];
+    rep(turn, max_turn) {
+        num_turn++;
         string actions;
-        rep(i, N) {
-            if (turn < SZ(S[i])) {
-                actions.pb(S[i][turn]);
+        if (turn == 0) {
+            // 初回はクレーン0以外を爆破
+            actions = string(N, 'B');
+            actions[0] = '.';
+        } else {
+            // 2回目以降はクレーン0を操作
+            actions = string(N, '.');
+
+            if (target_pos.is_null()) {
+                // 目的地が未設定の場合は、最初に見つかったコンテナを目的地に設定
+                rep(x, N) rep(y, N) {
+                    if (terminal.grid[y][x] != -1) {
+                        target_pos = Pos(x, y);
+                        break;
+                    }
+                }
+            }
+
+            if (target_pos == Pos(crane0.x, crane0.y)) {
+                // 目的地に到達したら積み下ろし又は積み込み
+                if (crane0.is_holding()) {
+                    // 積み下ろし
+                    actions[0] = 'Q';
+                    target_pos.set_null();
+                } else {
+                    // 積み込み
+                    actions[0] = 'P';
+                    int container = terminal.grid[crane0.y][crane0.x];
+                    // 積み下ろし位置を指定
+                    target_pos = Pos(N - 1, container / N);
+                }
             } else {
-                actions.pb('.');
+                // 目的地に向かう
+                if (crane0.x < target_pos.x) {
+                    actions[0] = 'R';
+                } else if (crane0.x > target_pos.x) {
+                    actions[0] = 'L';
+                } else if (crane0.y < target_pos.y) {
+                    actions[0] = 'D';
+                } else if (crane0.y > target_pos.y) {
+                    actions[0] = 'U';
+                }
             }
         }
+        
         terminal.step(actions);
+        actions_list.pb(actions);
+        if (terminal.is_clear()) break;
+    }
+
+    vector<string> S(N);
+    rep(i, N) {
+        rep(turn, actions_list.size()) { S[i] += actions_list[turn][i]; }
     }
 
     rep(i, N) { cout << S[i] << endl; }
