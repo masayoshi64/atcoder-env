@@ -6,3 +6,5 @@ output.txt
 a.out*
 test.sh
 submit.sh
+submit.cpp
+input.txt
