@@ -19,12 +19,13 @@ struct Pos {
 };
 
 struct Crane {
+    int id;
     int x, y;
     int holding_container = -1;
     bool is_alive = true;
     Pos goal;
 
-    Crane(int x, int y) : x(x), y(y) {}
+    Crane(int id, int x, int y) : id(id), x(x), y(y) {}
 
     bool is_holding() { return holding_container != -1; }
 
@@ -44,6 +45,7 @@ struct Crane {
 };
 
 struct Terminal {
+    int turn = 0;
     mat<int> grid;
     mat<int> dispatched_containers;
     mat<int> waiting_containers;
@@ -54,7 +56,7 @@ struct Terminal {
         rep(i, N) rrep(j, N) { waiting_containers[i].pb(A[i][j]); }
 
         // クレーンの初期位置
-        rep(i, N) { cranes.pb(Crane(0, i)); }
+        rep(i, N) { cranes.pb(Crane(i, 0, i)); }
 
         // グリッドの左端にコンテナを積む
         rep(i, N) {
@@ -64,6 +66,7 @@ struct Terminal {
     }
 
     void step(string actions) {
+        turn++;
         rep(crane_id, N) {
             int action = actions[crane_id];
             if (action == 'P') {
@@ -131,8 +134,8 @@ struct Terminal {
         }
     }
 
-    int calc_score(int num_turn) {
-        int M0 = num_turn;
+    int calc_score() {
+        int M0 = turn;
         int M1 = 0;
         int M2 = 0;
         int M3 = N * N;
@@ -159,6 +162,8 @@ struct Terminal {
         }
         return true;
     }
+
+    bool is_timeout() { return turn >= max_turn; }
 };
 
 int main(int argc, char *argv[]) {
@@ -173,51 +178,61 @@ int main(int argc, char *argv[]) {
 
     vector<string> actions_list;
     Terminal terminal;
-    int num_turn = 0;
+
+    // とりあえず20このコンテナをターミナルに出す
+    actions_list.pb(string(N, 'P'));
+    rep(i, 3) { actions_list.pb(string(N, 'R')); }
+    actions_list.pb(string(N, 'Q'));
+    rep(i, 3) { actions_list.pb(string(N, 'L')); }
+    actions_list.pb(string(N, 'P'));
+    rep(i, 2) { actions_list.pb(string(N, 'R')); }
+    actions_list.pb(string(N, 'Q'));
+    rep(i, 2) { actions_list.pb(string(N, 'L')); }
+    actions_list.pb(string(N, 'P'));
+    rep(i, 1) { actions_list.pb(string(N, 'R')); }
+    actions_list.pb(string(N, 'Q'));
+    rep(i, 1) {
+        string actions = string(N, 'B');
+        actions[0] = '.';
+        actions_list.pb(actions);
+    }
+    for (auto &actions : actions_list) { terminal.step(actions); }
+
+    // クレーン0で運び出していく
     Crane &crane0 = terminal.cranes[0];
-    rep(turn, max_turn) {
-        num_turn++;
-        string actions;
-        if (turn == 0) {
-            // 初回はクレーン0以外を爆破
-            actions = string(N, 'B');
-            actions[0] = '.';
-        } else {
-            // 2回目以降はクレーン0を操作
-            actions = string(N, '.');
+    while (!terminal.is_clear() && !terminal.is_timeout()) {
+        string actions = string(N, '.');
 
-            if (crane0.goal.is_null()) {
-                // 目的地が未設定の場合は、最初に見つかったコンテナを目的地に設定
-                rep(x, N) rep(y, N) {
-                    if (terminal.grid[y][x] != -1) {
-                        crane0.set_goal(Pos(x, y));
-                        break;
-                    }
+        if (crane0.goal.is_null()) {
+            // 目的地が未設定の場合は、最初に見つかったコンテナを目的地に設定
+            rep(x, N) rep(y, N) {
+                if (terminal.grid[y][x] != -1) {
+                    crane0.set_goal(Pos(x, y));
+                    break;
                 }
             }
+        }
 
-            if (crane0.is_arrived()) {
-                // 目的地に到達したら積み下ろし又は積み込み
-                if (crane0.is_holding()) {
-                    // 積み下ろし
-                    actions[0] = 'Q';
-                    crane0.clear_goal();
-                } else {
-                    // 積み込み
-                    actions[0] = 'P';
-                    int container = terminal.grid[crane0.y][crane0.x];
-                    // 積み下ろし位置を指定
-                    crane0.set_goal(Pos(N - 1, container / N));
-                }
+        if (crane0.is_arrived()) {
+            // 目的地に到達したら積み下ろし又は積み込み
+            if (crane0.is_holding()) {
+                // 積み下ろし
+                actions[0] = 'Q';
+                crane0.clear_goal();
             } else {
-                // 目的地に向かう
-                actions[0] = crane0.get_action_to_target();
+                // 積み込み
+                actions[0] = 'P';
+                int container = terminal.grid[crane0.y][crane0.x];
+                // 積み下ろし位置を指定
+                crane0.set_goal(Pos(N - 1, container / N));
             }
+        } else {
+            // 目的地に向かう
+            actions[0] = crane0.get_action_to_target();
         }
 
         terminal.step(actions);
         actions_list.pb(actions);
-        if (terminal.is_clear()) break;
     }
 
     vector<string> S(N);
@@ -227,5 +242,5 @@ int main(int argc, char *argv[]) {
 
     rep(i, N) { cout << S[i] << endl; }
 
-    cerr << "Score = " << terminal.calc_score(num_turn) << endl;
+    cerr << "Score = " << terminal.calc_score() << endl;
 }

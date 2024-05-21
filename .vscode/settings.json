@@ -7,6 +7,7 @@
         "list": "cpp",
         "vector": "cpp",
         "*.tcc": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "string": "cpp"
     }
 }
