@@ -16,6 +16,8 @@ struct Pos {
     void set_null() { x = -1, y = -1; }
 
     bool operator==(const Pos &p) const { return x == p.x && y == p.y; }
+
+    bool operator!=(const Pos &p) const { return x != p.x || y != p.y; }
 };
 
 struct Crane {
@@ -23,24 +25,50 @@ struct Crane {
     int x, y;
     int holding_container = -1;
     bool is_alive = true;
-    Pos goal;
+    Pos start, goal;
 
     Crane(int id, int x, int y) : id(id), x(x), y(y) {}
 
     bool is_holding() { return holding_container != -1; }
 
-    bool is_arrived() { return Pos(x, y) == goal; }
+    bool is_at_goal() { return Pos(x, y) == goal; }
 
-    void set_goal(Pos goal) { this->goal = goal; }
+    bool is_at_start() { return Pos(x, y) == start; }
 
-    void clear_goal() { goal.set_null(); }
+    bool is_finished() { return goal.is_null(); }
 
-    char get_action_to_target() {
-        if (x < goal.x) return 'R';
-        if (x > goal.x) return 'L';
-        if (y < goal.y) return 'D';
-        if (y > goal.y) return 'U';
-        return '.';
+    void set_path(Pos start, Pos goal) {
+        this->start = start;
+        this->goal = goal;
+    }
+
+    void clear_path() {
+        start.set_null();
+        goal.set_null();
+    }
+
+    char get_move_to_target(Pos target) {
+        if (x < target.x) return 'R';
+        if (x > target.x) return 'L';
+        if (y < target.y) return 'D';
+        if (y > target.y) return 'U';
+        assert(false);
+    }
+
+    char get_next_action() {
+        if (is_holding()) {
+            if (is_at_goal()) {
+                return 'Q';
+            } else {
+                return get_move_to_target(goal);
+            }
+        } else {
+            if (is_at_start()) {
+                return 'P';
+            } else {
+                return get_move_to_target(start);
+            }
+        }
     }
 };
 
@@ -203,33 +231,27 @@ int main(int argc, char *argv[]) {
     while (!terminal.is_clear() && !terminal.is_timeout()) {
         string actions = string(N, '.');
 
-        if (crane0.goal.is_null()) {
+        if (crane0.is_finished()) {
             // 目的地が未設定の場合は、最初に見つかったコンテナを目的地に設定
             rep(x, N) rep(y, N) {
-                if (terminal.grid[y][x] != -1) {
-                    crane0.set_goal(Pos(x, y));
+                int container_id = terminal.grid[y][x];
+                if (container_id == -1) continue;
+                if (container_id % N == terminal.dispatched_containers[container_id / N].size()) {
+                    crane0.set_path(Pos(x, y), Pos(N - 1, container_id / N));
                     break;
+                }
+            }
+            if (crane0.goal.is_null()) {
+                rep(x, N) rep(y, N) {
+                    int container_id = terminal.grid[y][x];
+                    if (container_id == -1) continue;
+                    crane0.set_path(Pos(x, y), Pos(N - 1, container_id / N));
                 }
             }
         }
 
-        if (crane0.is_arrived()) {
-            // 目的地に到達したら積み下ろし又は積み込み
-            if (crane0.is_holding()) {
-                // 積み下ろし
-                actions[0] = 'Q';
-                crane0.clear_goal();
-            } else {
-                // 積み込み
-                actions[0] = 'P';
-                int container = terminal.grid[crane0.y][crane0.x];
-                // 積み下ろし位置を指定
-                crane0.set_goal(Pos(N - 1, container / N));
-            }
-        } else {
-            // 目的地に向かう
-            actions[0] = crane0.get_action_to_target();
-        }
+        actions[0] = crane0.get_next_action();
+        if (actions[0] == 'Q') { crane0.clear_path(); }
 
         terminal.step(actions);
         actions_list.pb(actions);
