@@ -56,6 +56,8 @@ struct Crane {
     }
 
     char get_next_action() {
+        if (!is_alive) return '.';
+
         if (is_holding()) {
             if (is_at_goal()) {
                 return 'Q';
@@ -78,8 +80,9 @@ struct Terminal {
     mat<int> dispatched_containers;
     mat<int> waiting_containers;
     vector<Crane> cranes;
+    vector<string> S;
 
-    Terminal() : grid(N, vi(N, -1)), dispatched_containers(N), waiting_containers(N) {
+    Terminal() : grid(N, vi(N, -1)), dispatched_containers(N), waiting_containers(N), S(N) {
         // 積み込み前のコンテナ（列ごとに出る順番の降順）
         rep(i, N) rrep(j, N) { waiting_containers[i].pb(A[i][j]); }
 
@@ -93,25 +96,29 @@ struct Terminal {
         }
     }
 
-    void step(string actions) {
+    void step(map<int, char> actions = {}) {
         turn++;
-        rep(crane_id, N) {
-            int action = actions[crane_id];
+        for (auto &crane : cranes) {
+            char action = actions.count(crane.id) ? actions[crane.id] : crane.get_next_action();
+
+            if (action == 'Q') crane.clear_path();
+            S[crane.id] += action;
+
             if (action == 'P') {
-                pick(cranes[crane_id]);
+                pick(crane);
             } else if (action == 'Q') {
-                release(cranes[crane_id]);
+                release(crane);
             } else if (action == '.') {
                 continue;
             } else if (action == 'B') {
-                destroy(cranes[crane_id]);
+                destroy(crane);
             } else {
                 int dx = 0, dy = 0;
                 if (action == 'L') { dx = -1; }
                 if (action == 'R') { dx = 1; }
                 if (action == 'U') { dy = -1; }
                 if (action == 'D') { dy = 1; }
-                move(cranes[crane_id], dx, dy);
+                move(crane, dx, dy);
             }
         }
     }
@@ -204,33 +211,28 @@ int main(int argc, char *argv[]) {
     A = mat<int>(N, vi(N));
     scan(A);
 
-    vector<string> actions_list;
     Terminal terminal;
-
     // とりあえず20このコンテナをターミナルに出す
-    actions_list.pb(string(N, 'P'));
-    rep(i, 3) { actions_list.pb(string(N, 'R')); }
-    actions_list.pb(string(N, 'Q'));
-    rep(i, 3) { actions_list.pb(string(N, 'L')); }
-    actions_list.pb(string(N, 'P'));
-    rep(i, 2) { actions_list.pb(string(N, 'R')); }
-    actions_list.pb(string(N, 'Q'));
-    rep(i, 2) { actions_list.pb(string(N, 'L')); }
-    actions_list.pb(string(N, 'P'));
-    rep(i, 1) { actions_list.pb(string(N, 'R')); }
-    actions_list.pb(string(N, 'Q'));
-    rep(i, 1) {
-        string actions = string(N, 'B');
-        actions[0] = '.';
-        actions_list.pb(actions);
+    rep(i, N - 1) {
+        for (auto &crane : terminal.cranes) {
+            if (crane.is_finished()) { crane.set_path(Pos(0, crane.y), Pos(N - i - 2, crane.y)); }
+        }
+        while (!terminal.cranes[0].is_finished()) { terminal.step(); }
     }
-    for (auto &actions : actions_list) { terminal.step(actions); }
+
+    // クレーン0以外を破壊
+    map<int, char> actions;
+    rep(i, N) {
+        if (i == 0)
+            actions[i] = '.';
+        else
+            actions[i] = 'B';
+    }
+    terminal.step(actions);
 
     // クレーン0で運び出していく
     Crane &crane0 = terminal.cranes[0];
     while (!terminal.is_clear() && !terminal.is_timeout()) {
-        string actions = string(N, '.');
-
         if (crane0.is_finished()) {
             // 目的地が未設定の場合は、最初に見つかったコンテナを目的地に設定
             rep(x, N) rep(y, N) {
@@ -241,7 +243,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
             }
-            if (crane0.goal.is_null()) {
+            if (crane0.is_finished()) {
                 rep(y, N) {
                     if (terminal.waiting_containers[y].empty()) continue;
                     Pos start = Pos(0, y);
@@ -265,19 +267,10 @@ int main(int argc, char *argv[]) {
         cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
         cerr << "goal = " << crane0.goal.x << " " << crane0.goal.y << endl;
 
-        actions[0] = crane0.get_next_action();
-        if (actions[0] == 'Q') { crane0.clear_path(); }
-
-        terminal.step(actions);
-        actions_list.pb(actions);
+        terminal.step();
     }
 
-    vector<string> S(N);
-    rep(i, N) {
-        rep(turn, actions_list.size()) { S[i] += actions_list[turn][i]; }
-    }
-
-    rep(i, N) { cout << S[i] << endl; }
+    rep(i, N) { cout << terminal.S[i] << endl; }
 
     cerr << "Score = " << terminal.calc_score() << endl;
 }
