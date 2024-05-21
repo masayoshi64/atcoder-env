@@ -242,13 +242,28 @@ int main(int argc, char *argv[]) {
                 }
             }
             if (crane0.goal.is_null()) {
-                rep(x, N) rep(y, N) {
-                    int container_id = terminal.grid[y][x];
-                    if (container_id == -1) continue;
-                    crane0.set_path(Pos(x, y), Pos(N - 1, container_id / N));
+                rep(y, N) {
+                    if (terminal.waiting_containers[y].empty()) continue;
+                    Pos start = Pos(0, y);
+                    Pos goal;
+                    rep(gx, 0, N - 1) {
+                        rep(gy, N) {
+                            if (Pos(gx, gy) == crane0.start) continue;
+                            if (terminal.grid[gy][gx] == -1) {
+                                goal = Pos(gx, gy);
+                                break;
+                            }
+                        }
+                    }
+                    crane0.set_path(start, goal);
+                    break;
                 }
             }
+            if (crane0.start.is_null() || crane0.goal.is_null()) { break; }
         }
+
+        cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
+        cerr << "goal = " << crane0.goal.x << " " << crane0.goal.y << endl;
 
         actions[0] = crane0.get_next_action();
         if (actions[0] == 'Q') { crane0.clear_path(); }
