@@ -247,16 +247,18 @@ int main(int argc, char *argv[]) {
                 rep(y, N) {
                     if (terminal.waiting_containers[y].empty()) continue;
                     Pos start = Pos(0, y);
-                    Pos goal;
+                    vector<Pos> empty_positions;
                     rep(gx, 0, N - 1) {
                         rep(gy, N) {
-                            if (Pos(gx, gy) == crane0.start) continue;
-                            if (terminal.grid[gy][gx] == -1) {
-                                goal = Pos(gx, gy);
-                                break;
-                            }
+                            if (terminal.grid[gy][gx] == -1) { empty_positions.pb(Pos(gx, gy)); }
                         }
                     }
+                    sort(all(empty_positions), [&](Pos a, Pos b) {
+                        ll cost_a = (abs(a.x - start.x) + abs(a.y - start.y)) * N - abs(a.x);
+                        ll cost_b = (abs(b.x - start.x) + abs(b.y - start.y)) * N - abs(b.x);
+                        return cost_a < cost_b;
+                    });
+                    Pos goal = empty_positions[0];
                     crane0.set_path(start, goal);
                     break;
                 }
