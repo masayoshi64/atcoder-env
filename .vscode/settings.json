@@ -9,6 +9,7 @@
         "*.tcc": "cpp",
         "iomanip": "cpp",
         "string": "cpp",
-        "map": "cpp"
+        "map": "cpp",
+        "locale": "cpp"
     }
 }

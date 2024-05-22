@@ -156,7 +156,7 @@ struct Terminal {
         crane.y = ny;
         if (crane.is_holding()) {
             containers[crane.holding_container].move(nx, ny);
-            if (x == 0 && !waiting_containers[y].empty()) {
+            if (grid[y][0] == -1 && !waiting_containers[y].empty()) {
                 grid[y][0] = waiting_containers[y].back();
                 containers[grid[y][0]].move(0, y);
                 waiting_containers[y].pop_back();
@@ -226,9 +226,37 @@ struct Terminal {
     bool is_timeout() { return turn >= max_turn; }
 };
 
-vi determine_container_order() {
-    vi order(N * N);
-    iota(all(order), 0);
+vi determine_container_order(Terminal &terminal) {
+    int num_states = mypow<int>(N + 1, N);
+    mat<int> dp(num_states, vi(N, inf));
+    mat<tuple<int, int, int>> prev(num_states, vector<tuple<int, int, int>>(N));
+    dp[0][terminal.cranes[0].y] = 0;
+    rep(state, num_states) {
+        rep(crane_y, N) {
+            rep(next_crane_y, N) {
+                int num_dispatched_containers = (state / mypow<int>(N + 1, next_crane_y)) % (N + 1);
+                if (num_dispatched_containers == N) continue;
+                int next_container_id = N * next_crane_y + num_dispatched_containers;
+                Container &container = terminal.containers[next_container_id];
+                int next_state = state + mypow<int>(N + 1, next_crane_y);
+                int cost = abs(crane_y - container.y);
+                if (chmin(dp[next_state][next_crane_y], dp[state][crane_y] + cost)) {
+                    prev[next_state][next_crane_y] = {state, crane_y, next_container_id};
+                }
+            }
+        }
+    }
+
+    vi order;
+    int state = num_states - 1;
+    int crane_y = terminal.cranes[0].y;
+    while (state > 0) {
+        auto [prev_state, prev_crane_y, container_id] = prev[state][crane_y];
+        order.pb(container_id);
+        state = prev_state;
+        crane_y = prev_crane_y;
+    }
+    reverse(all(order));
     return order;
 }
 
@@ -262,7 +290,8 @@ int main(int argc, char *argv[]) {
     terminal.step(actions);
 
     // クレーン0で運び出していく
-    vi order = determine_container_order();
+    vi order = determine_container_order(terminal);
+    cerr << order << endl;
     Crane &crane0 = terminal.cranes[0];
 
     rep(oi, N * N) {
@@ -273,7 +302,7 @@ int main(int argc, char *argv[]) {
         if (!next_container.is_loaded()) {
             Pos start = Pos(0, next_container.y);
             vector<Pos> empty_positions;
-            rep(gx, 0, N - 1) {
+            rep(gx, 0, N - 2) {
                 rep(gy, N) {
                     if (terminal.grid[gy][gx] == -1) { empty_positions.pb(Pos(gx, gy)); }
                 }
@@ -285,6 +314,9 @@ int main(int argc, char *argv[]) {
             });
             Pos goal = empty_positions[0];
             crane0.set_path(start, goal);
+            cerr << "container_id = " << terminal.containers[terminal.grid[next_container.y][0]].id << endl;
+            cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
+            cerr << "goal = " << crane0.goal.x << " " << crane0.goal.y << endl;
         }
         while (!crane0.is_finished()) { terminal.step(); }
 
@@ -293,6 +325,7 @@ int main(int argc, char *argv[]) {
         Pos goal = Pos(N - 1, next_container_id / N);
         crane0.set_path(start, goal);
 
+        cerr << "container_id = " << next_container_id << endl;
         cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
         cerr << "goal = " << crane0.goal.x << " " << crane0.goal.y << endl;
 
