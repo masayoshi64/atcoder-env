@@ -8,6 +8,7 @@
         "vector": "cpp",
         "*.tcc": "cpp",
         "iomanip": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "map": "cpp"
     }
 }

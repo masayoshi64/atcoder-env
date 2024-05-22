@@ -74,17 +74,36 @@ struct Crane {
     }
 };
 
+struct Container {
+    int id;
+    int x, y;
+
+    Container(int id, int x, int y) : id(id), x(x), y(y) {}
+
+    Container() : id(-1), x(-1), y(-1) {}
+
+    void move(int nx, int ny) {
+        x = nx;
+        y = ny;
+    }
+};
+
 struct Terminal {
     int turn = 0;
     mat<int> grid;
     mat<int> dispatched_containers;
     mat<int> waiting_containers;
     vector<Crane> cranes;
+    vector<Container> containers;
     vector<string> S;
 
     Terminal() : grid(N, vi(N, -1)), dispatched_containers(N), waiting_containers(N), S(N) {
         // 積み込み前のコンテナ（列ごとに出る順番の降順）
-        rep(i, N) rrep(j, N) { waiting_containers[i].pb(A[i][j]); }
+        containers.resize(N * N);
+        rep(y, N) rrep(x, N) {
+            waiting_containers[y].pb(A[y][x]);
+            containers[A[y][x]] = Container(A[y][x], -1, y);
+        }
 
         // クレーンの初期位置
         rep(i, N) { cranes.pb(Crane(i, 0, i)); }
@@ -93,6 +112,7 @@ struct Terminal {
         rep(i, N) {
             grid[i][0] = waiting_containers[i].back();
             waiting_containers[i].pop_back();
+            containers[grid[i][0]].move(0, i);
         }
     }
 
@@ -133,8 +153,10 @@ struct Terminal {
         crane.x = nx;
         crane.y = ny;
         if (crane.is_holding()) {
+            containers[crane.holding_container].move(nx, ny);
             if (x == 0 && !waiting_containers[y].empty()) {
-                grid[y][x] = waiting_containers[y].back();
+                grid[y][0] = waiting_containers[y].back();
+                containers[grid[y][0]].move(0, y);
                 waiting_containers[y].pop_back();
             }
         }
@@ -165,6 +187,7 @@ struct Terminal {
         crane.holding_container = -1;
         if (crane.x == N - 1) {
             dispatched_containers[crane.y].pb(grid[crane.y][crane.x]);
+            containers[grid[crane.y][crane.x]].move(N, crane.y);
             grid[crane.y][crane.x] = -1;
         }
     }
@@ -235,11 +258,12 @@ int main(int argc, char *argv[]) {
     while (!terminal.is_clear() && !terminal.is_timeout()) {
         if (crane0.is_finished()) {
             // 目的地が未設定の場合は、最初に見つかったコンテナを目的地に設定
-            rep(x, N) rep(y, N) {
-                int container_id = terminal.grid[y][x];
-                if (container_id == -1) continue;
-                if (container_id % N == terminal.dispatched_containers[container_id / N].size()) {
-                    crane0.set_path(Pos(x, y), Pos(N - 1, container_id / N));
+            rep(y, N) {
+                if (terminal.dispatched_containers[y].size() == N) continue;
+                int next_container_id = y * N + terminal.dispatched_containers[y].size();
+                Container &next_container = terminal.containers[next_container_id];
+                if (next_container.x != -1) {
+                    crane0.set_path(Pos(next_container.x, next_container.y), Pos(N - 1, y));
                     break;
                 }
             }
