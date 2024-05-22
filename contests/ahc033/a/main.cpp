@@ -7,17 +7,27 @@ mat<int> A;
 struct Pos {
     int x, y;
 
-    Pos() : x(-1), y(-1) {}
+    Pos() : x(-1), y(-1) {
+    }
 
-    Pos(int x, int y) : x(x), y(y) {}
+    Pos(int x, int y) : x(x), y(y) {
+    }
 
-    bool is_null() { return x == -1 && y == -1; }
+    bool is_null() {
+        return x == -1 && y == -1;
+    }
 
-    void set_null() { x = -1, y = -1; }
+    void set_null() {
+        x = -1, y = -1;
+    }
 
-    bool operator==(const Pos &p) const { return x == p.x && y == p.y; }
+    bool operator==(const Pos &p) const {
+        return x == p.x && y == p.y;
+    }
 
-    bool operator!=(const Pos &p) const { return x != p.x || y != p.y; }
+    bool operator!=(const Pos &p) const {
+        return x != p.x || y != p.y;
+    }
 };
 
 struct Crane {
@@ -27,15 +37,24 @@ struct Crane {
     bool is_alive = true;
     Pos start, goal;
 
-    Crane(int id, int x, int y) : id(id), x(x), y(y) {}
+    Crane(int id, int x, int y) : id(id), x(x), y(y) {
+    }
 
-    bool is_holding() { return holding_container != -1; }
+    bool is_holding() {
+        return holding_container != -1;
+    }
 
-    bool is_at_goal() { return Pos(x, y) == goal; }
+    bool is_at_goal() {
+        return Pos(x, y) == goal;
+    }
 
-    bool is_at_start() { return Pos(x, y) == start; }
+    bool is_at_start() {
+        return Pos(x, y) == start;
+    }
 
-    bool is_finished() { return goal.is_null(); }
+    bool is_finished() {
+        return goal.is_null();
+    }
 
     void set_path(Pos start, Pos goal) {
         this->start = start;
@@ -78,16 +97,20 @@ struct Container {
     int id;
     int x, y;
 
-    Container(int id, int x, int y) : id(id), x(x), y(y) {}
+    Container(int id, int x, int y) : id(id), x(x), y(y) {
+    }
 
-    Container() : id(-1), x(-1), y(-1) {}
+    Container() : id(-1), x(-1), y(-1) {
+    }
 
     void move(int nx, int ny) {
         x = nx;
         y = ny;
     }
 
-    bool is_loaded() { return x != -1; }
+    bool is_loaded() {
+        return x != -1;
+    }
 };
 
 struct Terminal {
@@ -108,7 +131,9 @@ struct Terminal {
         }
 
         // クレーンの初期位置
-        rep(i, N) { cranes.pb(Crane(i, 0, i)); }
+        rep(i, N) {
+            cranes.pb(Crane(i, 0, i));
+        }
 
         // グリッドの左端にコンテナを積む
         rep(i, N) {
@@ -136,10 +161,18 @@ struct Terminal {
                 destroy(crane);
             } else {
                 int dx = 0, dy = 0;
-                if (action == 'L') { dx = -1; }
-                if (action == 'R') { dx = 1; }
-                if (action == 'U') { dy = -1; }
-                if (action == 'D') { dy = 1; }
+                if (action == 'L') {
+                    dx = -1;
+                }
+                if (action == 'R') {
+                    dx = 1;
+                }
+                if (action == 'U') {
+                    dy = -1;
+                }
+                if (action == 'D') {
+                    dy = 1;
+                }
                 move(crane, dx, dy);
             }
         }
@@ -208,7 +241,9 @@ struct Terminal {
                 } else {
                     rep(k, j + 1, num_containers) {
                         if (dispatched_containers[i][k] < N * i || N * (i + 1) <= dispatched_containers[i][k]) continue;
-                        if (dispatched_containers[i][j] > dispatched_containers[i][k]) { M1++; }
+                        if (dispatched_containers[i][j] > dispatched_containers[i][k]) {
+                            M1++;
+                        }
                     }
                 }
             }
@@ -223,8 +258,20 @@ struct Terminal {
         return true;
     }
 
-    bool is_timeout() { return turn >= max_turn; }
+    bool is_timeout() {
+        return turn >= max_turn;
+    }
 };
+
+bool is_full(int state, Terminal &terminal) {
+    rep(y, N) {
+        int num_dispatched_containers = (state / mypow<int>(N + 1, y)) % (N + 1);
+        rep(container_id, N * y, N * y + num_dispatched_containers) {
+            if (terminal.containers[container_id].x != 0) return false;
+        }
+    }
+    return true;
+}
 
 vi determine_container_order(Terminal &terminal) {
     int num_states = mypow<int>(N + 1, N);
@@ -238,6 +285,7 @@ vi determine_container_order(Terminal &terminal) {
                 if (num_dispatched_containers == N) continue;
                 int next_container_id = N * next_crane_y + num_dispatched_containers;
                 Container &container = terminal.containers[next_container_id];
+                if (is_full(state, terminal) && !container.is_loaded()) continue;
                 int next_state = state + mypow<int>(N + 1, next_crane_y);
                 int cost = abs(crane_y - container.y);
                 if (chmin(dp[next_state][next_crane_y], dp[state][crane_y] + cost)) {
@@ -274,9 +322,13 @@ int main(int argc, char *argv[]) {
     // とりあえず20このコンテナをターミナルに出す
     rep(i, N - 1) {
         for (auto &crane : terminal.cranes) {
-            if (crane.is_finished()) { crane.set_path(Pos(0, crane.y), Pos(N - i - 2, crane.y)); }
+            if (crane.is_finished()) {
+                crane.set_path(Pos(0, crane.y), Pos(N - i - 2, crane.y));
+            }
         }
-        while (!terminal.cranes[0].is_finished()) { terminal.step(); }
+        while (!terminal.cranes[0].is_finished()) {
+            terminal.step();
+        }
     }
 
     // クレーン0以外を破壊
@@ -302,9 +354,11 @@ int main(int argc, char *argv[]) {
         if (!next_container.is_loaded()) {
             Pos start = Pos(0, next_container.y);
             vector<Pos> empty_positions;
-            rep(gx, 0, N - 2) {
+            rep(gx, 0, N - 1) {
                 rep(gy, N) {
-                    if (terminal.grid[gy][gx] == -1) { empty_positions.pb(Pos(gx, gy)); }
+                    if (terminal.grid[gy][gx] == -1) {
+                        empty_positions.pb(Pos(gx, gy));
+                    }
                 }
             }
             sort(all(empty_positions), [&](Pos a, Pos b) {
@@ -318,7 +372,9 @@ int main(int argc, char *argv[]) {
             cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
             cerr << "goal = " << crane0.goal.x << " " << crane0.goal.y << endl;
         }
-        while (!crane0.is_finished()) { terminal.step(); }
+        while (!crane0.is_finished()) {
+            terminal.step();
+        }
 
         // 次のコンテナを運び出す
         Pos start = Pos(next_container.x, next_container.y);
@@ -329,10 +385,14 @@ int main(int argc, char *argv[]) {
         cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
         cerr << "goal = " << crane0.goal.x << " " << crane0.goal.y << endl;
 
-        while (!crane0.is_finished()) { terminal.step(); }
+        while (!crane0.is_finished()) {
+            terminal.step();
+        }
     }
 
-    rep(i, N) { cout << terminal.S[i] << endl; }
+    rep(i, N) {
+        cout << terminal.S[i] << endl;
+    }
 
     cerr << "Score = " << terminal.calc_score() << endl;
 }
