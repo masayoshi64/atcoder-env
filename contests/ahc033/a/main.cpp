@@ -86,6 +86,8 @@ struct Container {
         x = nx;
         y = ny;
     }
+
+    bool is_loaded() { return x != -1; }
 };
 
 struct Terminal {
@@ -224,6 +226,12 @@ struct Terminal {
     bool is_timeout() { return turn >= max_turn; }
 };
 
+vi determine_container_order() {
+    vi order(N * N);
+    iota(all(order), 0);
+    return order;
+}
+
 int main(int argc, char *argv[]) {
     cin.tie(0);
     ios::sync_with_stdio(0);
@@ -254,46 +262,41 @@ int main(int argc, char *argv[]) {
     terminal.step(actions);
 
     // クレーン0で運び出していく
+    vi order = determine_container_order();
     Crane &crane0 = terminal.cranes[0];
-    while (!terminal.is_clear() && !terminal.is_timeout()) {
-        if (crane0.is_finished()) {
-            // 目的地が未設定の場合は、最初に見つかったコンテナを目的地に設定
-            rep(y, N) {
-                if (terminal.dispatched_containers[y].size() == N) continue;
-                int next_container_id = y * N + terminal.dispatched_containers[y].size();
-                Container &next_container = terminal.containers[next_container_id];
-                if (next_container.x != -1) {
-                    crane0.set_path(Pos(next_container.x, next_container.y), Pos(N - 1, y));
-                    break;
+
+    rep(oi, N * N) {
+        int next_container_id = order[oi];
+        Container &next_container = terminal.containers[next_container_id];
+
+        // 次のコンテナが積まれていない場合は邪魔なコンテナを移動させる
+        if (!next_container.is_loaded()) {
+            Pos start = Pos(0, next_container.y);
+            vector<Pos> empty_positions;
+            rep(gx, 0, N - 1) {
+                rep(gy, N) {
+                    if (terminal.grid[gy][gx] == -1) { empty_positions.pb(Pos(gx, gy)); }
                 }
             }
-            if (crane0.is_finished()) {
-                rep(y, N) {
-                    if (terminal.waiting_containers[y].empty()) continue;
-                    Pos start = Pos(0, y);
-                    vector<Pos> empty_positions;
-                    rep(gx, 0, N - 1) {
-                        rep(gy, N) {
-                            if (terminal.grid[gy][gx] == -1) { empty_positions.pb(Pos(gx, gy)); }
-                        }
-                    }
-                    sort(all(empty_positions), [&](Pos a, Pos b) {
-                        ll cost_a = (abs(a.x - start.x) + abs(a.y - start.y)) * N - abs(a.x);
-                        ll cost_b = (abs(b.x - start.x) + abs(b.y - start.y)) * N - abs(b.x);
-                        return cost_a < cost_b;
-                    });
-                    Pos goal = empty_positions[0];
-                    crane0.set_path(start, goal);
-                    break;
-                }
-            }
-            if (crane0.start.is_null() || crane0.goal.is_null()) { break; }
+            sort(all(empty_positions), [&](Pos a, Pos b) {
+                ll cost_a = (abs(a.x - start.x) + abs(a.y - start.y)) * N - abs(a.x);
+                ll cost_b = (abs(b.x - start.x) + abs(b.y - start.y)) * N - abs(b.x);
+                return cost_a < cost_b;
+            });
+            Pos goal = empty_positions[0];
+            crane0.set_path(start, goal);
         }
+        while (!crane0.is_finished()) { terminal.step(); }
+
+        // 次のコンテナを運び出す
+        Pos start = Pos(next_container.x, next_container.y);
+        Pos goal = Pos(N - 1, next_container_id / N);
+        crane0.set_path(start, goal);
 
         cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
         cerr << "goal = " << crane0.goal.x << " " << crane0.goal.y << endl;
 
-        terminal.step();
+        while (!crane0.is_finished()) { terminal.step(); }
     }
 
     rep(i, N) { cout << terminal.S[i] << endl; }
