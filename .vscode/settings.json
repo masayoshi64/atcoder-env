@@ -11,5 +11,10 @@
         "string": "cpp",
         "map": "cpp",
         "locale": "cpp"
-    }
+    },
+    "cSpell.words": [
+        "chmin",
+        "mypow",
+        "rrep"
+    ]
 }
