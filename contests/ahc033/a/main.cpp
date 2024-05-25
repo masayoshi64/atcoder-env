@@ -273,7 +273,7 @@ bool is_full(int state, Terminal &terminal) {
     return true;
 }
 
-vi determine_container_order(Terminal &terminal) {
+vi get_best_container_que(Terminal &terminal) {
     int num_states = mypow<int>(N + 1, N);
     mat<int> dp(num_states, vi(N, inf));
     mat<tuple<int, int, int>> prev(num_states, vector<tuple<int, int, int>>(N));
@@ -295,17 +295,16 @@ vi determine_container_order(Terminal &terminal) {
         }
     }
 
-    vi order;
+    vi que;
     int state = num_states - 1;
     int crane_y = terminal.cranes[0].y;
     while (state > 0) {
         auto [prev_state, prev_crane_y, container_id] = prev[state][crane_y];
-        order.pb(container_id);
+        que.pb(container_id);
         state = prev_state;
         crane_y = prev_crane_y;
     }
-    reverse(all(order));
-    return order;
+    return que;
 }
 
 int main(int argc, char *argv[]) {
@@ -342,12 +341,12 @@ int main(int argc, char *argv[]) {
     terminal.step(actions);
 
     // クレーン0で運び出していく
-    vi order = determine_container_order(terminal);
-    cerr << order << endl;
+    vi que = get_best_container_que(terminal);
+    cerr << que << endl;
     Crane &crane0 = terminal.cranes[0];
 
-    rep(oi, N * N) {
-        int next_container_id = order[oi];
+    while (!que.empty()) {
+        int next_container_id = que.back();
         Container &next_container = terminal.containers[next_container_id];
 
         // 次のコンテナが積まれていない場合は邪魔なコンテナを移動させる
@@ -368,18 +367,13 @@ int main(int argc, char *argv[]) {
             });
             Pos goal = empty_positions[0];
             crane0.set_path(start, goal);
-            cerr << "container_id = " << terminal.containers[terminal.grid[next_container.y][0]].id << endl;
-            cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
-            cerr << "goal = " << crane0.goal.x << " " << crane0.goal.y << endl;
+        } else {
+            // 次のコンテナを運び出す
+            Pos start = Pos(next_container.x, next_container.y);
+            Pos goal = Pos(N - 1, next_container_id / N);
+            crane0.set_path(start, goal);
+            que.pop_back();
         }
-        while (!crane0.is_finished()) {
-            terminal.step();
-        }
-
-        // 次のコンテナを運び出す
-        Pos start = Pos(next_container.x, next_container.y);
-        Pos goal = Pos(N - 1, next_container_id / N);
-        crane0.set_path(start, goal);
 
         cerr << "container_id = " << next_container_id << endl;
         cerr << "start = " << crane0.start.x << " " << crane0.start.y << endl;
