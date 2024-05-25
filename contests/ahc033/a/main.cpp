@@ -65,32 +65,6 @@ struct Crane {
         start.set_null();
         goal.set_null();
     }
-
-    char get_move_to_target(Pos target) {
-        if (x < target.x) return 'R';
-        if (x > target.x) return 'L';
-        if (y < target.y) return 'D';
-        if (y > target.y) return 'U';
-        assert(false);
-    }
-
-    char get_next_action() {
-        if (!is_alive) return '.';
-
-        if (is_holding()) {
-            if (is_at_goal()) {
-                return 'Q';
-            } else {
-                return get_move_to_target(goal);
-            }
-        } else {
-            if (is_at_start()) {
-                return 'P';
-            } else {
-                return get_move_to_target(start);
-            }
-        }
-    }
 };
 
 struct Container {
@@ -111,7 +85,27 @@ struct Container {
     bool is_loaded() {
         return x != -1;
     }
+
+    bool is_dispatched() {
+        return x == N;
+    }
 };
+
+char get_move_to_target(Pos here, Pos target) {
+    if (here.x < target.x) return 'R';
+    if (here.x > target.x) return 'L';
+    if (here.y < target.y) return 'D';
+    if (here.y > target.y) return 'U';
+    assert(false);
+}
+
+Pos get_next_pos(Pos here, char move) {
+    if (move == 'L') return Pos(here.x - 1, here.y);
+    if (move == 'R') return Pos(here.x + 1, here.y);
+    if (move == 'U') return Pos(here.x, here.y - 1);
+    if (move == 'D') return Pos(here.x, here.y + 1);
+    assert(false);
+}
 
 struct Terminal {
     int turn = 0;
@@ -143,10 +137,28 @@ struct Terminal {
         }
     }
 
+    char get_next_action(Crane &crane) {
+        if (!crane.is_alive || crane.is_finished()) return '.';
+
+        if (crane.is_holding()) {
+            if (crane.is_at_goal()) {
+                return 'Q';
+            } else {
+                return get_move_to_target(Pos(crane.x, crane.y), crane.goal);
+            }
+        } else {
+            if (crane.is_at_start()) {
+                return 'P';
+            } else {
+                return get_move_to_target(Pos(crane.x, crane.y), crane.start);
+            }
+        }
+    }
+
     void step(map<int, char> actions = {}) {
         turn++;
         for (auto &crane : cranes) {
-            char action = actions.count(crane.id) ? actions[crane.id] : crane.get_next_action();
+            char action = actions.count(crane.id) ? actions[crane.id] : get_next_action(crane);
 
             if (action == 'Q') crane.clear_path();
             S[crane.id] += action;
@@ -311,6 +323,8 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
     int next_container_id = que.back();
     Container &next_container = terminal.containers[next_container_id];
 
+    // クレーン0の場合
+
     // 次のコンテナが積まれていない場合は邪魔なコンテナを移動させる
     if (!next_container.is_loaded()) {
         Pos start = Pos(0, next_container.y);
@@ -381,12 +395,11 @@ int main(int argc, char *argv[]) {
     cerr << que << endl;
 
     while (!terminal.is_clear() && !terminal.is_timeout()) {
-        rep(crane_id, N) {
-            Crane &crane = terminal.cranes[crane_id];
-            if (crane.is_alive && crane.is_finished()) {
-                set_next_target(crane, terminal, que);
-            }
+        Crane &crane = terminal.cranes[0];
+        if (crane.is_alive && crane.is_finished()) {
+            set_next_target(crane, terminal, que);
         }
+
         terminal.step();
     }
 
