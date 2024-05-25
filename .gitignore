@@ -2,6 +2,7 @@
 tools
 .DS_Store
 tests
+test
 output.txt
 a.out*
 test.sh
