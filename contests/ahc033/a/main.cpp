@@ -58,8 +58,11 @@ Pos get_next_pos(const Pos &here, char move) {
     assert(false);
 }
 
-char get_avoid_action(const Pos &here, const vector<Pos> &obstacles) {
-    for (char action : {'L', 'R', 'U', 'D'}) {
+char get_avoid_action(const Pos &here, const vector<Pos> &obstacles, char undesirable_move) {
+    string moves = "LRUD";
+    moves.erase(remove(all(moves), undesirable_move), moves.end());
+    moves += undesirable_move;
+    for (char action : moves) {
         Pos next_pos = get_next_pos(here, action);
 
         // 移動可能か判定
@@ -431,6 +434,12 @@ string get_approaching_actions(Terminal &terminal, Pos here, Pos exit) {
     return actions;
 }
 
+bool is_occupied(Terminal &terminal, Pos pos) {
+    for (Crane &crane : terminal.cranes) {
+        if (crane.pos == pos) return true;
+    }
+}
+
 // 次のパスを設定する
 void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
     // 空いているセルを列挙
@@ -589,7 +598,7 @@ int main(int argc, char *argv[]) {
         if (is_move(action1)) {
             Pos next_pos1 = get_next_pos(crane1.pos, action1);
             if (next_pos1 == crane0.pos) {
-                actions[0] = get_avoid_action(crane0.pos, {crane1.pos});
+                actions[0] = get_avoid_action(crane0.pos, {crane1.pos}, action1);
             }
             if (is_move(action0)) {
                 Pos next_pos0 = get_next_pos(crane0.pos, action0);
@@ -601,7 +610,7 @@ int main(int argc, char *argv[]) {
             Pos next_pos0 = get_next_pos(crane0.pos, action0);
             if (next_pos0 == crane1.pos) {
                 if (actions[1] == '.') {
-                    actions[1] = get_avoid_action(crane1.pos, {crane0.pos});
+                    actions[1] = get_avoid_action(crane1.pos, {crane0.pos}, action0);
                 } else {
                     actions[0] = '.';
                 }
