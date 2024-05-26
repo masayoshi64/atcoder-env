@@ -28,16 +28,20 @@ struct Pos {
     bool operator!=(const Pos &p) const {
         return x != p.x || y != p.y;
     }
+
+    friend ostream &operator<<(ostream &os, const Pos p) {
+        return os << p.x << " " << p.y;
+    }
 };
 
 struct Crane {
     int id;
-    int x, y;
+    Pos pos;
     int holding_container = -1;
     bool is_alive = true;
     Pos start, goal;
 
-    Crane(int id, int x, int y) : id(id), x(x), y(y) {
+    Crane(int id, int x, int y) : id(id), pos(x, y) {
     }
 
     bool is_holding() {
@@ -45,11 +49,11 @@ struct Crane {
     }
 
     bool is_at_goal() {
-        return Pos(x, y) == goal;
+        return pos == goal;
     }
 
     bool is_at_start() {
-        return Pos(x, y) == start;
+        return pos == start;
     }
 
     bool is_finished() {
@@ -69,25 +73,24 @@ struct Crane {
 
 struct Container {
     int id;
-    int x, y;
+    Pos pos;
 
-    Container(int id, int x, int y) : id(id), x(x), y(y) {
+    Container(int id, int x, int y) : id(id), pos(x, y) {
     }
 
-    Container() : id(-1), x(-1), y(-1) {
+    Container() : id(-1) {
     }
 
-    void move(int nx, int ny) {
-        x = nx;
-        y = ny;
+    void move(const Pos &next_pos) {
+        pos = next_pos;
     }
 
     bool is_loaded() {
-        return x != -1;
+        return pos.x != -1;
     }
 
     bool is_dispatched() {
-        return x == N;
+        return pos.x == N;
     }
 };
 
@@ -133,8 +136,16 @@ struct Terminal {
         rep(i, N) {
             grid[i][0] = waiting_containers[i].back();
             waiting_containers[i].pop_back();
-            containers[grid[i][0]].move(0, i);
+            containers[grid[i][0]].move(Pos(0, i));
         }
+    }
+
+    int get_cell(const Pos &pos) {
+        return grid[pos.y][pos.x];
+    }
+
+    void set_cell(const Pos &pos, int value) {
+        grid[pos.y][pos.x] = value;
     }
 
     char get_next_action(Crane &crane) {
@@ -144,13 +155,13 @@ struct Terminal {
             if (crane.is_at_goal()) {
                 return 'Q';
             } else {
-                return get_move_to_target(Pos(crane.x, crane.y), crane.goal);
+                return get_move_to_target(crane.pos, crane.goal);
             }
         } else {
             if (crane.is_at_start()) {
                 return 'P';
             } else {
-                return get_move_to_target(Pos(crane.x, crane.y), crane.start);
+                return get_move_to_target(crane.pos, crane.start);
             }
         }
     }
@@ -172,38 +183,23 @@ struct Terminal {
             } else if (action == 'B') {
                 destroy(crane);
             } else {
-                int dx = 0, dy = 0;
-                if (action == 'L') {
-                    dx = -1;
-                }
-                if (action == 'R') {
-                    dx = 1;
-                }
-                if (action == 'U') {
-                    dy = -1;
-                }
-                if (action == 'D') {
-                    dy = 1;
-                }
-                move(crane, dx, dy);
+                Pos next_pos = get_next_pos(crane.pos, action);
+                move(crane, next_pos);
             }
         }
     }
 
-    void move(Crane &crane, int dx, int dy) {
+    void move(Crane &crane, Pos &next_pos) {
         assert(crane.is_alive);
-
-        int x = crane.x, y = crane.y;
-        int nx = crane.x + dx;
-        int ny = crane.y + dy;
-        cerr << "move " << x << " " << y << " " << nx << " " << ny << endl;
-        crane.x = nx;
-        crane.y = ny;
+        int y = crane.pos.y;
+        cerr << "move " << crane.pos << " to " << next_pos << endl;
+        crane.pos = next_pos;
         if (crane.is_holding()) {
-            containers[crane.holding_container].move(nx, ny);
-            if (grid[y][0] == -1 && !waiting_containers[y].empty()) {
+            containers[crane.holding_container].move(next_pos);
+            Pos entrance = Pos(0, y);
+            if (get_cell(entrance) == -1 && !waiting_containers[y].empty()) {
                 grid[y][0] = waiting_containers[y].back();
-                containers[grid[y][0]].move(0, y);
+                containers[grid[y][0]].move(Pos(0, y));
                 waiting_containers[y].pop_back();
             }
         }
@@ -212,10 +208,10 @@ struct Terminal {
     void pick(Crane &crane) {
         assert(crane.is_alive);
         assert(!crane.is_holding());
-        assert(grid[crane.y][crane.x] != -1);
+        assert(get_cell(crane.pos) != -1);
 
-        crane.holding_container = grid[crane.y][crane.x];
-        grid[crane.y][crane.x] = -1;
+        crane.holding_container = get_cell(crane.pos);
+        set_cell(crane.pos, -1);
     }
 
     void destroy(Crane &crane) {
@@ -228,14 +224,14 @@ struct Terminal {
     void release(Crane &crane) {
         assert(crane.is_alive);
         assert(crane.is_holding());
-        assert(grid[crane.y][crane.x] == -1);
+        assert(get_cell(crane.pos) == -1);
 
-        grid[crane.y][crane.x] = crane.holding_container;
+        set_cell(crane.pos, crane.holding_container);
         crane.holding_container = -1;
-        if (crane.x == N - 1) {
-            dispatched_containers[crane.y].pb(grid[crane.y][crane.x]);
-            containers[grid[crane.y][crane.x]].move(N, crane.y);
-            grid[crane.y][crane.x] = -1;
+        if (crane.pos.x == N - 1) {
+            dispatched_containers[crane.pos.y].pb(get_cell(crane.pos));
+            containers[get_cell(crane.pos)].move(Pos(N, crane.pos.y));
+            set_cell(crane.pos, -1);
         }
     }
 
@@ -279,7 +275,7 @@ bool is_full(int state, Terminal &terminal) {
     rep(y, N) {
         int num_dispatched_containers = (state / mypow<int>(N + 1, y)) % (N + 1);
         rep(container_id, N * y, N * y + num_dispatched_containers) {
-            if (terminal.containers[container_id].x != 0) return false;
+            if (terminal.containers[container_id].pos.x != 0) return false;
         }
     }
     return true;
@@ -289,7 +285,7 @@ vi get_best_container_que(Terminal &terminal) {
     int num_states = mypow<int>(N + 1, N);
     mat<int> dp(num_states, vi(N, inf));
     mat<tuple<int, int, int>> prev(num_states, vector<tuple<int, int, int>>(N));
-    dp[0][terminal.cranes[0].y] = 0;
+    dp[0][terminal.cranes[0].pos.y] = 0;
     rep(state, num_states) {
         rep(crane_y, N) {
             rep(next_crane_y, N) {
@@ -299,7 +295,7 @@ vi get_best_container_que(Terminal &terminal) {
                 Container &container = terminal.containers[next_container_id];
                 if (is_full(state, terminal) && !container.is_loaded()) continue;
                 int next_state = state + mypow<int>(N + 1, next_crane_y);
-                int cost = abs(crane_y - container.y);
+                int cost = abs(crane_y - container.pos.y);
                 if (chmin(dp[next_state][next_crane_y], dp[state][crane_y] + cost)) {
                     prev[next_state][next_crane_y] = {state, crane_y, next_container_id};
                 }
@@ -309,7 +305,7 @@ vi get_best_container_que(Terminal &terminal) {
 
     vi que;
     int state = num_states - 1;
-    int crane_y = terminal.cranes[0].y;
+    int crane_y = terminal.cranes[0].pos.y;
     while (state > 0) {
         auto [prev_state, prev_crane_y, container_id] = prev[state][crane_y];
         que.pb(container_id);
@@ -327,7 +323,7 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
 
     // 次のコンテナが積まれていない場合は邪魔なコンテナを移動させる
     if (!next_container.is_loaded()) {
-        Pos start = Pos(0, next_container.y);
+        Pos start = Pos(0, next_container.pos.y);
         vector<Pos> empty_positions;
         rep(gx, 0, N - 1) {
             rep(gy, N) {
@@ -345,7 +341,7 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
         crane.set_path(start, goal);
     } else {
         // 次のコンテナを運び出す
-        Pos start = Pos(next_container.x, next_container.y);
+        Pos start = next_container.pos;
         Pos goal = Pos(N - 1, next_container_id / N);
         crane.set_path(start, goal);
         que.pop_back();
@@ -372,7 +368,7 @@ int main(int argc, char *argv[]) {
     rep(i, N - 1) {
         for (auto &crane : terminal.cranes) {
             if (crane.is_finished()) {
-                crane.set_path(Pos(0, crane.y), Pos(N - i - 2, crane.y));
+                crane.set_path(Pos(0, crane.pos.y), Pos(N - i - 2, crane.pos.y));
             }
         }
         while (!terminal.cranes[0].is_finished()) {
