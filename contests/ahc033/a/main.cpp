@@ -237,7 +237,6 @@ struct Terminal {
 
     void move(Crane &crane, Pos &next_pos) {
         assert(crane.is_alive());
-        cerr << "move " << crane.pos << " to " << next_pos << endl;
 
         int y = crane.pos.y;
         crane.pos = next_pos;
@@ -320,6 +319,7 @@ struct Terminal {
     }
 
     bool is_goal_settable(Pos pos) {
+        if (pos.x == 0 && !waiting_containers[pos.y].empty()) return false;
         return get_cell(pos) == -1;
     }
 
@@ -332,6 +332,12 @@ struct Terminal {
 
     bool is_timeout() {
         return turn >= max_turn;
+    }
+
+    void debug_S() {
+        rep(i, N) {
+            cerr << S[i] << endl;
+        }
     }
 };
 
@@ -422,13 +428,14 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
         int next_container_id = que.back();
         Container &next_container = terminal.containers[next_container_id];
 
-        if (!next_container.is_assigned()) { // 次に運び出すコンテナがすでに割り当てられていない場合
+        if (!next_container.is_loaded()) {
+            // ターミナルに置かれていなければ邪魔なコンテナを移動させる
+            Pos start = Pos(0, next_container.pos.y);
+            int start_container_id = terminal.get_cell(start);
 
-            if (!next_container.is_loaded()) {
-                // ターミナルに置かれていなければ邪魔なコンテナを移動させる
-                Pos start = Pos(0, next_container.pos.y);
+            // すでに割り当てられていないなら一番近い空きますに移動
+            if (start_container_id != -1 && !terminal.containers[start_container_id].is_assigned()) {
 
-                // 一番近い空きますに移動
                 sort(all(empty_positions), [&](Pos a, Pos b) {
                     ll cost_a = (abs(a.x - start.x) + abs(a.y - start.y)) * N - abs(a.x);
                     ll cost_b = (abs(b.x - start.x) + abs(b.y - start.y)) * N - abs(b.x);
@@ -437,8 +444,10 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
                 Pos goal = empty_positions[0];
 
                 crane.set_path(start, goal);
-            } else {
-                // 次のコンテナを運び出す
+            }
+        } else {
+            if (!next_container.is_assigned()) {
+                // すでに割り当てられていないなら次のコンテナを運び出す
                 Pos start = next_container.pos;
                 Pos goal = Pos(N - 1, next_container_id / N);
 
@@ -448,24 +457,45 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
         }
     } else if (empty_positions.size() >= 2) { // クレーン0以外 かつ 空きマスが二つ以上
         // 一つ右にずらせるコンテナを列挙
-        vector<Container> movable_containers;
+        vector<pair<Pos, Pos>> path_candidates;
         for (Container &container : terminal.containers) {
             // コンテナがターミナルにない または すでに割り当て済み ならスキップ
             if (!container.is_loaded() || container.is_dispatched() || container.is_assigned()) continue;
 
-            Pos pos = container.pos;
-            pos.x++;
-            if (pos.x < N - 1 && terminal.is_goal_settable(pos)) { // 右隣が空いている場合
-                movable_containers.pb(container);
+            Pos goal = container.pos;
+            goal.x++;
+            if (goal.x < N - 1 && terminal.is_goal_settable(goal)) { // 右隣が空いている場合
+                path_candidates.emplace_back(container.pos, goal);
             }
         }
 
-        if (!movable_containers.empty()) {
+        // 一つ右にずらせるコンテナがないなら上下にずらせるコンテナを列挙
+        if (path_candidates.empty()) {
+            for (Container &container : terminal.containers) {
+                // コンテナがターミナルにない または すでに割り当て済み ならスキップ
+                if (!container.is_loaded() || container.is_dispatched() || container.is_assigned()) continue;
+
+                // コンテナがターミナルにない または すでに割り当て済み ならスキップ
+                if (container.pos.y != container.id / N) { // 上下に移動させる必要がある場合
+                    Pos goal = container.pos;
+                    if (container.pos.y < container.id / N)
+                        goal.y++;
+                    else
+                        goal.y--;
+
+                    if (terminal.is_goal_settable(goal)) {
+                        path_candidates.emplace_back(container.pos, goal);
+                    }
+                }
+            }
+        }
+
+        if (!path_candidates.empty()) {
             // 移動可能コンテナがあれば移動させる
-            sort(all(movable_containers),
-                 [&](Container a, Container b) { return dist(a.pos, crane.pos) < dist(b.pos, crane.pos); });
-            Pos start = movable_containers[0].pos;
-            Pos goal = Pos(start.x + 1, start.y);
+            sort(all(path_candidates), [&](pair<Pos, Pos> a, pair<Pos, Pos> b) {
+                return dist(a.first, crane.pos) < dist(b.first, crane.pos);
+            });
+            auto [start, goal] = path_candidates[0];
             crane.set_path(start, goal);
         }
     }
@@ -557,6 +587,7 @@ int main(int argc, char *argv[]) {
             }
         }
         terminal.step(actions);
+        terminal.debug_S();
     }
 
     rep(i, N) {
