@@ -422,12 +422,12 @@ Pos get_exit(int container_id) {
     return Pos(N - 1, container_id / N);
 }
 
-string get_approaching_actions(Terminal &terminal, Crane &crane, Pos exit) {
+string get_approaching_actions(Terminal &terminal, Pos here, Pos exit) {
     string actions = "";
-    if (crane.pos.x < exit.x) actions += 'R';
-    if (crane.pos.x > exit.x) actions += 'L';
-    if (crane.pos.y < exit.y) actions += 'D';
-    if (crane.pos.y > exit.y) actions += 'U';
+    if (here.x < exit.x) actions += 'R';
+    if (here.x > exit.x) actions += 'L';
+    if (here.y < exit.y) actions += 'D';
+    if (here.y > exit.y) actions += 'U';
     return actions;
 }
 
@@ -485,31 +485,12 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
             // コンテナがターミナルにない または すでに割り当て済み ならスキップ
             if (!container.is_loaded() || container.is_dispatched() || container.is_assigned()) continue;
 
-            Pos goal = container.pos;
-            goal.x++;
-            if (goal.x == N - 1 && !is_next(terminal, container.id)) continue;
-            if (terminal.is_goal_settable(goal)) { // 右隣が空いている場合
-                path_candidates.emplace_back(container.pos, goal);
-            }
-        }
-
-        // 一つ右にずらせるコンテナがないなら上下にずらせるコンテナを列挙
-        if (path_candidates.empty()) {
-            for (Container &container : terminal.containers) {
-                // コンテナがターミナルにない または すでに割り当て済み ならスキップ
-                if (!container.is_loaded() || container.is_dispatched() || container.is_assigned()) continue;
-
-                // コンテナがターミナルにない または すでに割り当て済み ならスキップ
-                if (container.pos.y != container.id / N) { // 上下に移動させる必要がある場合
-                    Pos goal = container.pos;
-                    if (container.pos.y < container.id / N)
-                        goal.y++;
-                    else
-                        goal.y--;
-
-                    if (terminal.is_goal_settable(goal)) {
-                        path_candidates.emplace_back(container.pos, goal);
-                    }
+            string moves = get_approaching_actions(terminal, container.pos, get_exit(container.id));
+            for (char move : moves) {
+                Pos next_pos = get_next_pos(container.pos, move);
+                if (next_pos.x == N - 1 && !is_next(terminal, container.id)) continue;
+                if (terminal.is_goal_settable(next_pos)) { // 右隣が空いている場合
+                    path_candidates.emplace_back(container.pos, next_pos);
                 }
             }
         }
@@ -533,7 +514,7 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
 }
 
 void succeed(Crane &crane, Terminal &terminal) {
-    string actions = get_approaching_actions(terminal, crane, get_exit(crane.holding_container_id));
+    string actions = get_approaching_actions(terminal, crane.pos, get_exit(crane.holding_container_id));
     for (char action : actions) {
         Pos next_pos = get_next_pos(crane.pos, action);
         if (next_pos.x == N - 1 && !is_next(terminal, crane.holding_container_id)) continue;
