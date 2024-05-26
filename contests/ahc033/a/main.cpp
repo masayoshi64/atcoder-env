@@ -86,6 +86,7 @@ struct Crane {
     Pos pos;
     int holding_container_id = -1;
     bool alive = true;
+    bool succeed = false;
     Pos start, goal;
 
     Crane(int id, int x, int y) : id(id), pos(x, y) {
@@ -320,6 +321,7 @@ struct Terminal {
     }
 
     bool is_goal_settable(Pos pos) {
+        if (pos.x == N - 1) return true;
         if (pos.x == 0 && !waiting_containers[pos.y].empty()) return false;
         return get_cell(pos) == -1;
     }
@@ -343,7 +345,7 @@ struct Terminal {
     }
 };
 
-char get_next_action(Terminal& terminal, Crane &crane) {
+char get_next_action(Terminal &terminal, Crane &crane) {
     // すでに破壊されたかパスが指定されていなければ待機
     if (!crane.is_alive() || crane.is_finished()) return '.';
 
@@ -412,6 +414,23 @@ vi get_best_container_que(Terminal &terminal) {
     return que;
 }
 
+bool is_next(Terminal &terminal, int container_id) {
+    return terminal.dispatched_containers[container_id / N].size() == container_id % N;
+}
+
+Pos get_exit(int container_id) {
+    return Pos(N - 1, container_id / N);
+}
+
+string get_approaching_actions(Terminal &terminal, Crane &crane, Pos exit) {
+    string actions = "";
+    if (crane.pos.x < exit.x) actions += 'R';
+    if (crane.pos.x > exit.x) actions += 'L';
+    if (crane.pos.y < exit.y) actions += 'D';
+    if (crane.pos.y > exit.y) actions += 'U';
+    return actions;
+}
+
 // 次のパスを設定する
 void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
     // 空いているセルを列挙
@@ -468,7 +487,8 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
 
             Pos goal = container.pos;
             goal.x++;
-            if (goal.x < N - 1 && terminal.is_goal_settable(goal)) { // 右隣が空いている場合
+            if (goal.x == N - 1 && !is_next(terminal, container.id)) continue;
+            if (terminal.is_goal_settable(goal)) { // 右隣が空いている場合
                 path_candidates.emplace_back(container.pos, goal);
             }
         }
@@ -512,6 +532,19 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
     }
 }
 
+void succeed(Crane &crane, Terminal &terminal) {
+    string actions = get_approaching_actions(terminal, crane, get_exit(crane.holding_container_id));
+    for (char action : actions) {
+        Pos next_pos = get_next_pos(crane.pos, action);
+        if (next_pos.x == N - 1 && !is_next(terminal, crane.holding_container_id)) continue;
+        if (in_field(next_pos) && terminal.is_goal_settable(next_pos)) {
+            terminal.set_cell(crane.goal, -1);
+            crane.goal = next_pos;
+            terminal.set_cell(crane.goal, -2);
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     cin.tie(0);
     ios::sync_with_stdio(0);
@@ -548,13 +581,17 @@ int main(int argc, char *argv[]) {
     terminal.step(destroy_actions);
 
     // クレーン0, 1で運び出していく
+    terminal.cranes[1].succeed = true;
     vi que = get_best_container_que(terminal);
     cerr << que << endl;
 
     while (!terminal.is_clear() && !terminal.is_timeout()) {
         for (Crane &crane : terminal.cranes) {
-            if (crane.is_alive() && crane.is_finished()) {
+            if (!crane.is_alive()) continue;
+            if (crane.is_finished()) {
                 set_next_target(crane, terminal, que);
+            } else if (crane.is_holding() && crane.is_at_goal() && crane.succeed) {
+                succeed(crane, terminal);
             }
         }
 
@@ -568,26 +605,25 @@ int main(int argc, char *argv[]) {
         Crane &crane1 = terminal.cranes[1];
         char action0 = actions[0];
         char action1 = actions[1];
-        if (is_move(action0)) {
-            Pos next_pos0 = get_next_pos(crane0.pos, action0);
-            if (next_pos0 == crane1.pos) {
-                if (crane1.is_holding()) {
-                    actions[0] = '.';
-                    actions[1] = 'Q';
-                } else {
-                    actions[1] = get_avoid_action(crane1.pos, {crane0.pos});
-                }
-            }
-            if (is_move(action1)) {
-                Pos next_pos1 = get_next_pos(crane1.pos, action1);
-                if (next_pos1 == next_pos0) {
-                    actions[1] = '.';
-                }
-            }
-        } else if (is_move(action1)) {
+        if (is_move(action1)) {
             Pos next_pos1 = get_next_pos(crane1.pos, action1);
             if (next_pos1 == crane0.pos) {
-                actions[1] = '.';
+                actions[0] = get_avoid_action(crane0.pos, {crane1.pos});
+            }
+            if (is_move(action0)) {
+                Pos next_pos0 = get_next_pos(crane0.pos, action0);
+                if (next_pos0 == next_pos1) {
+                    actions[0] = '.';
+                }
+            }
+        } else if (is_move(action0)) {
+            Pos next_pos0 = get_next_pos(crane0.pos, action0);
+            if (next_pos0 == crane1.pos) {
+                if (actions[1] == '.') {
+                    actions[1] = get_avoid_action(crane1.pos, {crane0.pos});
+                } else {
+                    actions[0] = '.';
+                }
             }
         }
         terminal.step(actions);
