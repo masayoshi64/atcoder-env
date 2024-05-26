@@ -213,6 +213,7 @@ struct Terminal {
         for (auto &crane : cranes) {
             char action = actions[crane.id];
             S[crane.id] += action;
+            debug_S();
 
             // コンテナを下ろす場合パスをクリアして割り当てを解除
             if (action == 'Q') {
@@ -338,10 +339,11 @@ struct Terminal {
         rep(i, N) {
             cerr << S[i] << endl;
         }
+        cerr << string(20, '-') << endl;
     }
 };
 
-char get_next_action(Crane &crane) {
+char get_next_action(Terminal& terminal, Crane &crane) {
     // すでに破壊されたかパスが指定されていなければ待機
     if (!crane.is_alive() || crane.is_finished()) return '.';
 
@@ -424,7 +426,9 @@ void set_next_target(Crane &crane, Terminal &terminal, vi &que) {
 
     if (crane.id == 0) {
         // クレーン0の場合
-
+        while (!que.empty() && terminal.containers[que.back()].is_dispatched())
+            que.pop_back();
+        if (que.empty()) return;
         int next_container_id = que.back();
         Container &next_container = terminal.containers[next_container_id];
 
@@ -530,7 +534,7 @@ int main(int argc, char *argv[]) {
         while (!terminal.cranes[0].is_finished()) {
             string actions = string(N, '.');
             for (Crane &crane : terminal.cranes) {
-                actions[crane.id] = get_next_action(crane);
+                actions[crane.id] = get_next_action(terminal, crane);
             }
             terminal.step(actions);
         }
@@ -556,7 +560,7 @@ int main(int argc, char *argv[]) {
 
         string actions = string(N, '.');
         for (Crane &crane : terminal.cranes) {
-            actions[crane.id] = get_next_action(crane);
+            actions[crane.id] = get_next_action(terminal, crane);
         }
 
         // 衝突回避
@@ -587,7 +591,6 @@ int main(int argc, char *argv[]) {
             }
         }
         terminal.step(actions);
-        terminal.debug_S();
     }
 
     rep(i, N) {
